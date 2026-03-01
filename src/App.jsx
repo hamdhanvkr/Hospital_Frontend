@@ -15,9 +15,10 @@ import Contact from "./pages/Contact";
 import PatientRegister from "./pages/auth/PatientRegister";
 import VerifyOTP from "./pages/auth/VerifyOTP";
 import Login from "./pages/auth/Login";
+import ChangePassword from "./pages/auth/ChangePassword"; // Import Change Password
 
 // Patient Pages
-import PatientViewDoctors from "./pages/patient/ViewDoctors"; // Renamed import
+import PatientViewDoctors from "./pages/patient/ViewDoctors";
 import BookAppointment from "./pages/patient/BookAppointment";
 import PatientDashboard from "./pages/patient/PatientDashboard";
 
@@ -28,7 +29,7 @@ import ViewPatientAppointments from "./pages/doctor/ViewPatientAppointments";
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AddDoctor from "./pages/admin/AddDoctor";
-import AdminViewDoctors from "./pages/admin/ViewDoctors"; // Renamed import
+import AdminViewDoctors from "./pages/admin/ViewDoctors";
 import ViewAppointments from "./pages/admin/ViewAppointments";
 
 function App() {
@@ -81,6 +82,8 @@ function App() {
                     <Route path="doctors" element={<PatientViewDoctors />} />
                     <Route path="book-appointment/:doctorId" element={<BookAppointment />} />
                     <Route path="appointments" element={<PatientDashboard />} />
+                    {/* Change Password Route */}
+                    <Route path="change-password" element={<ChangePassword role="patient" />} />
                   </Routes>
                 </div>
               </div>
@@ -99,6 +102,8 @@ function App() {
                   <Routes>
                     <Route path="dashboard" element={<DoctorDashboard />} />
                     <Route path="appointments" element={<ViewPatientAppointments />} />
+                    {/* Change Password Route */}
+                    <Route path="change-password" element={<ChangePassword role="doctor" />} />
                   </Routes>
                 </div>
               </div>
@@ -119,6 +124,8 @@ function App() {
                     <Route path="add-doctor" element={<AddDoctor />} />
                     <Route path="doctors" element={<AdminViewDoctors />} />
                     <Route path="appointments" element={<ViewAppointments />} />
+                    {/* Change Password Route */}
+                    <Route path="change-password" element={<ChangePassword role="admin" />} />
                   </Routes>
                 </div>
               </div>

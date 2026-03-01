@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, LogOut, Users, UserPlus, ClipboardList, LayoutDashboard } from 'lucide-react';
+import { Calendar, LogOut, Users, UserPlus, ClipboardList, LayoutDashboard, Key } from 'lucide-react';
 
 export default function SideMenu({ role }) {
   const navigate = useNavigate();
@@ -30,12 +30,13 @@ export default function SideMenu({ role }) {
   };
 
   return (
-    <div className="w-64 bg-white shadow-lg min-h-screen p-6">
+    <div className="w-64 bg-white shadow-lg min-h-screen p-6 flex flex-col">
       <div className="mb-8">
         <h2 className="text-xl font-bold text-slate-800 capitalize">{role} Dashboard</h2>
       </div>
 
-      <nav className="space-y-2">
+      <nav className="space-y-2 flex-1">
+        {/* Role-specific menu items */}
         {menuItems[role]?.map((item, index) => (
           <Link
             key={index}
@@ -47,14 +48,24 @@ export default function SideMenu({ role }) {
           </Link>
         ))}
 
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center space-x-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-4"
+        {/* Change Password - Common for all roles */}
+        <Link
+          to={`/${role}/change-password`}
+          className="flex items-center space-x-3 px-4 py-3 text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
         >
-          <LogOut className="w-5 h-5" />
-          <span className="font-medium">Logout</span>
-        </button>
+          <Key className="w-5 h-5" />
+          <span className="font-medium">Change Password</span>
+        </Link>
       </nav>
+
+      {/* Logout button at bottom */}
+      <button
+        onClick={handleLogout}
+        className="w-full flex items-center space-x-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-4"
+      >
+        <LogOut className="w-5 h-5" />
+        <span className="font-medium">Logout</span>
+      </button>
     </div>
   );
 }
