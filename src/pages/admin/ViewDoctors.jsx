@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import API from '../../api/axios';
 import { Edit, Trash2, Calendar, Clock, DollarSign, Mail, Phone } from 'lucide-react';
 
 export default function ViewDoctors() {
+  const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,6 +21,10 @@ export default function ViewDoctors() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (id) => {
+    navigate(`/admin/edit-doctor/${id}`);
   };
 
   const handleDelete = async (id) => {
@@ -49,7 +55,7 @@ export default function ViewDoctors() {
             <p className="text-slate-500 mt-2">Manage all registered doctors</p>
           </div>
           <button
-            onClick={() => window.location.href = '/admin/add-doctor'}
+            onClick={() => navigate('/admin/add-doctor')}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
           >
             Add New Doctor
@@ -63,9 +69,12 @@ export default function ViewDoctors() {
                 {/* Doctor Image */}
                 <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex-shrink-0 overflow-hidden">
                   <img
-                    src={doctor.image}
+                    src={doctor.image || 'https://via.placeholder.com/150'}
                     alt={doctor.name}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/150';
+                    }}
                   />
                 </div>
 
@@ -77,9 +86,19 @@ export default function ViewDoctors() {
                       <p className="text-blue-600">{doctor.specialization}</p>
                     </div>
                     <div className="flex space-x-2">
+                      {/* Edit Button */}
+                      <button
+                        onClick={() => handleEdit(doctor._id)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Edit Doctor"
+                      >
+                        <Edit className="w-5 h-5" />
+                      </button>
+                      {/* Delete Button */}
                       <button
                         onClick={() => handleDelete(doctor._id)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete Doctor"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -121,6 +140,12 @@ export default function ViewDoctors() {
                         </span>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Working Hours */}
+                  <div className="mt-3 text-sm text-slate-500">
+                    <span className="font-medium">Working Hours:</span>{' '}
+                    {doctor.startTime} - {doctor.endTime}
                   </div>
                 </div>
               </div>

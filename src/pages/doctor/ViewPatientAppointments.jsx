@@ -1,13 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import API from '../../api/axios';
-import { Calendar, Clock, User, Phone, Mail, CheckCircle, XCircle, Filter, Search } from 'lucide-react';
+import { 
+  Calendar, Clock, User, Phone, Mail, CheckCircle, XCircle, 
+  Filter, Search, Edit, AlertCircle, FileText, Download,
+  ChevronDown
+} from 'lucide-react';
 
 export default function ViewPatientAppointments() {
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [filteredAppointments, setFilteredAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    filterType: 'all', // 'all', 'today', 'upcoming', 'pending', 'confirmed', 'completed', 'cancelled', 'rescheduled'
+    dateFrom: '',
+    dateTo: '',
+    searchTerm: ''
+  });
+  
+  // UI state
+  const [showDateFilters, setShowDateFilters] = useState(false);
 
   useEffect(() => {
     fetchAppointments();
@@ -15,7 +30,7 @@ export default function ViewPatientAppointments() {
 
   useEffect(() => {
     filterAppointments();
-  }, [filter, appointments, searchTerm]);
+  }, [appointments, filters]);
 
   const fetchAppointments = async () => {
     try {
@@ -31,10 +46,10 @@ export default function ViewPatientAppointments() {
   const filterAppointments = () => {
     let filtered = [...appointments];
     
-    // Apply status filter
     const today = new Date().toDateString();
     
-    switch (filter) {
+    // Apply status/type filter
+    switch (filters.filterType) {
       case 'today':
         filtered = filtered.filter(apt => 
           new Date(apt.appointmentDate).toDateString() === today
@@ -42,7 +57,9 @@ export default function ViewPatientAppointments() {
         break;
       case 'upcoming':
         filtered = filtered.filter(apt => 
-          new Date(apt.appointmentDate) > new Date() && apt.status !== 'completed' && apt.status !== 'cancelled'
+          new Date(apt.appointmentDate) > new Date() && 
+          apt.status !== 'completed' && 
+          apt.status !== 'cancelled'
         );
         break;
       case 'pending':
@@ -57,29 +74,147 @@ export default function ViewPatientAppointments() {
       case 'cancelled':
         filtered = filtered.filter(apt => apt.status === 'cancelled');
         break;
+      case 'rescheduled':
+        filtered = filtered.filter(apt => apt.isRescheduled === true);
+        break;
       default:
         break;
     }
 
+    // Apply date range filter
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(apt => new Date(apt.appointmentDate) >= fromDate);
+    }
+    
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(apt => new Date(apt.appointmentDate) <= toDate);
+    }
+
     // Apply search filter
-    if (searchTerm) {
+    if (filters.searchTerm) {
+      const term = filters.searchTerm.toLowerCase();
       filtered = filtered.filter(apt => 
-        apt.patientId?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        apt.patientId?.phone?.includes(searchTerm) ||
-        apt.patientId?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        apt.patientId?.fullName?.toLowerCase().includes(term) ||
+        apt.patientId?.phone?.includes(term) ||
+        apt.patientId?.email?.toLowerCase().includes(term) ||
+        apt.symptoms?.toLowerCase().includes(term)
       );
     }
 
     setFilteredAppointments(filtered);
   };
 
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      filterType: 'all',
+      dateFrom: '',
+      dateTo: '',
+      searchTerm: ''
+    });
+    setShowDateFilters(false);
+  };
+
   const updateStatus = async (appointmentId, status) => {
     try {
       await API.put(`/doctor/appointments/${appointmentId}/status`, { status });
-      fetchAppointments(); // Refresh list
+      fetchAppointments();
     } catch (error) {
       alert('Failed to update status');
     }
+  };
+
+  // ✅ FIXED: Cancel with confirmation and proper status update
+  const handleCancel = async (appointmentId, patientName) => {
+    // Show confirmation dialog
+    const isConfirmed = window.confirm(
+      `Are you sure you want to cancel this appointment for ${patientName}`
+    );
+    
+    if (isConfirmed) {
+      try {
+        await API.put(`/doctor/appointments/${appointmentId}/status`, { status: 'cancelled' });
+        alert('✅ Appointment cancelled successfully');
+        fetchAppointments(); // Refresh the list
+      } catch (error) {
+        alert('❌ Failed to cancel appointment');
+      }
+    }
+  };
+
+  const handleReschedule = (appointmentId) => {
+    navigate(`/doctor/reschedule-appointment/${appointmentId}`);
+  };
+
+  const exportToCSV = () => {
+    // Prepare CSV headers
+    const headers = [
+      'Patient Name',
+      'Phone',
+      'Email',
+      'Age',
+      'Gender',
+      'Address',
+      'Appointment Date',
+      'Time',
+      'Status',
+      'Symptoms',
+      'Rescheduled',
+      'Reschedule Reason'
+    ];
+
+    // Prepare data rows - using filteredAppointments (respects current filters)
+    const data = filteredAppointments.map(apt => [
+      apt.patientId?.fullName || 'N/A',
+      apt.patientId?.phone || 'N/A',
+      apt.patientId?.email || 'N/A',
+      apt.patientId?.age || 'N/A',
+      apt.patientId?.gender || 'N/A',
+      apt.patientId?.address || 'N/A',
+      formatDate(apt.appointmentDate),
+      formatTime12Hour(apt.timeSlot),
+      apt.status || 'N/A',
+      apt.symptoms || 'N/A',
+      apt.isRescheduled ? 'Yes' : 'No',
+      apt.rescheduleReason || 'N/A'
+    ]);
+
+    // Create CSV content
+    const csvContent = [headers, ...data]
+      .map(row => row.map(cell => {
+        if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"'))) {
+          return `"${cell.replace(/"/g, '""')}"`;
+        }
+        return cell;
+      }).join(','))
+      .join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Generate filename with current date and filter info
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filterStr = filters.filterType !== 'all' ? `_${filters.filterType}` : '';
+    const dateRangeStr = (filters.dateFrom || filters.dateTo) ? 
+      `_${filters.dateFrom || 'start'}_to_${filters.dateTo || 'end'}` : '';
+    const searchStr = filters.searchTerm ? `_search_${filters.searchTerm.replace(/\s+/g, '_')}` : '';
+    
+    link.download = `appointments${filterStr}${dateRangeStr}${searchStr}_${dateStr}.csv`;
+    link.click();
+    
+    // Cleanup
+    URL.revokeObjectURL(url);
   };
 
   const formatDate = (dateString) => {
@@ -92,6 +227,14 @@ export default function ViewPatientAppointments() {
     });
   };
 
+  const formatTime12Hour = (time24) => {
+    if (!time24) return '';
+    const [hours, minutes] = time24.split(':').map(Number);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+    return `${hour12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed':
@@ -102,6 +245,8 @@ export default function ViewPatientAppointments() {
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'cancelled':
         return 'bg-red-100 text-red-800 border-red-200';
+      case 'rescheduled':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -117,6 +262,8 @@ export default function ViewPatientAppointments() {
         return <CheckCircle className="w-4 h-4" />;
       case 'cancelled':
         return <XCircle className="w-4 h-4" />;
+      case 'rescheduled':
+        return <Edit className="w-4 h-4" />;
       default:
         return null;
     }
@@ -134,9 +281,46 @@ export default function ViewPatientAppointments() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Patient Appointments</h1>
-          <p className="text-gray-600 mt-2">View and manage all your patient appointments</p>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Patient Appointments</h1>
+            <p className="text-gray-600 mt-2">
+              {filteredAppointments.length} {filteredAppointments.length === 1 ? 'appointment' : 'appointments'} found
+            </p>
+          </div>
+          
+          <div className="flex gap-2">
+            {/* Export CSV Button */}
+            {filteredAppointments.length > 0 && (
+              <button
+                onClick={exportToCSV}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            )}
+            
+            {/* Date Filter Toggle */}
+            <button
+              onClick={() => setShowDateFilters(!showDateFilters)}
+              className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              <span>Date Range</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showDateFilters ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {/* Clear Filters Button */}
+            {(filters.filterType !== 'all' || filters.dateFrom || filters.dateTo || filters.searchTerm) && (
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search and Filter Bar */}
@@ -147,18 +331,19 @@ export default function ViewPatientAppointments() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by patient name, phone or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by patient name, phone, email or symptoms..."
+                value={filters.searchTerm}
+                onChange={(e) => setFilters({...filters, searchTerm: e.target.value})}
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             
-            {/* Filter Dropdown */}
+            {/* Status Filter Dropdown */}
             <div className="relative">
               <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                name="filterType"
+                value={filters.filterType}
+                onChange={handleFilterChange}
                 className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All Appointments</option>
@@ -168,10 +353,41 @@ export default function ViewPatientAppointments() {
                 <option value="confirmed">Confirmed</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
+                <option value="rescheduled">Rescheduled</option>
               </select>
               <Filter className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
             </div>
           </div>
+
+          {/* Date Range Filters */}
+          {showDateFilters && (
+            <div className="grid md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  name="dateFrom"
+                  value={filters.dateFrom}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  name="dateTo"
+                  value={filters.dateTo}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Appointments List */}
@@ -180,7 +396,9 @@ export default function ViewPatientAppointments() {
             <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-gray-700 mb-2">No Appointments Found</h3>
             <p className="text-gray-500">
-              {searchTerm ? 'No appointments match your search criteria.' : 'No appointments available.'}
+              {filters.searchTerm || filters.filterType !== 'all' || filters.dateFrom || filters.dateTo
+                ? 'No appointments match your filters.'
+                : 'No appointments available.'}
             </p>
           </div>
         ) : (
@@ -213,6 +431,35 @@ export default function ViewPatientAppointments() {
                   </div>
                 </div>
 
+                {/* Reschedule Information - Show if rescheduled */}
+                {appointment.isRescheduled && (
+                  <div className="mx-6 mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex items-start space-x-3">
+                      <AlertCircle className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-purple-800 text-sm flex items-center">
+                          <FileText className="w-4 h-4 mr-1" />
+                          Rescheduled Appointment
+                        </h4>
+                        <p className="text-sm text-purple-700 mt-1">
+                          <span className="font-medium">Reason:</span> {appointment.rescheduleReason}
+                        </p>
+                        <div className="grid grid-cols-2 gap-4 mt-2 text-xs text-purple-600">
+                          <div>
+                            <span className="font-medium">Originally:</span>{' '}
+                            {appointment.originalAppointmentDate ? 
+                              formatDate(appointment.originalAppointmentDate) : 'N/A'} 
+                            at {appointment.originalTimeSlot || 'N/A'}
+                          </div>
+                          <div>
+                            <span className="font-medium">Rescheduled by:</span> Doctor
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Appointment Details */}
                 <div className="p-6">
                   <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -227,7 +474,7 @@ export default function ViewPatientAppointments() {
                       <Clock className="w-5 h-5 text-blue-500" />
                       <div>
                         <p className="text-xs text-gray-400">Time</p>
-                        <p className="font-medium">{appointment.timeSlot}</p>
+                        <p className="font-medium">{formatTime12Hour(appointment.timeSlot)}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-3 text-gray-600">
@@ -278,6 +525,17 @@ export default function ViewPatientAppointments() {
 
                   {/* Action Buttons */}
                   <div className="flex flex-wrap gap-3 border-t pt-4">
+                    {/* Reschedule Button - Show for pending/confirmed appointments */}
+                    {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
+                      <button
+                        onClick={() => handleReschedule(appointment._id)}
+                        className="flex items-center space-x-2 px-6 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Reschedule</span>
+                      </button>
+                    )}
+
                     {appointment.status === 'pending' && (
                       <>
                         <button
@@ -288,7 +546,7 @@ export default function ViewPatientAppointments() {
                           <span>Confirm Appointment</span>
                         </button>
                         <button
-                          onClick={() => updateStatus(appointment._id, 'cancelled')}
+                          onClick={() => handleCancel(appointment._id, appointment.patientId?.fullName || 'this patient')}
                           className="flex items-center space-x-2 px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                         >
                           <XCircle className="w-4 h-4" />
@@ -296,15 +554,26 @@ export default function ViewPatientAppointments() {
                         </button>
                       </>
                     )}
+                    
                     {appointment.status === 'confirmed' && (
-                      <button
-                        onClick={() => updateStatus(appointment._id, 'completed')}
-                        className="flex items-center space-x-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Mark as Completed</span>
-                      </button>
+                      <>
+                        <button
+                          onClick={() => updateStatus(appointment._id, 'completed')}
+                          className="flex items-center space-x-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          <span>Mark as Completed</span>
+                        </button>
+                        <button
+                          onClick={() => handleCancel(appointment._id, appointment.patientId?.fullName || 'this patient')}
+                          className="flex items-center space-x-2 px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                          <XCircle className="w-4 h-4" />
+                          <span>Cancel</span>
+                        </button>
+                      </>
                     )}
+                    
                     {appointment.status === 'completed' && (
                       <div className="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-lg">
                         <span className="flex items-center space-x-2">
@@ -313,6 +582,7 @@ export default function ViewPatientAppointments() {
                         </span>
                       </div>
                     )}
+                    
                     {appointment.status === 'cancelled' && (
                       <div className="px-6 py-2.5 bg-red-100 text-red-600 rounded-lg">
                         <span className="flex items-center space-x-2">

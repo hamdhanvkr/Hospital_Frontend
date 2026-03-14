@@ -15,20 +15,23 @@ import Contact from "./pages/Contact";
 import PatientRegister from "./pages/auth/PatientRegister";
 import VerifyOTP from "./pages/auth/VerifyOTP";
 import Login from "./pages/auth/Login";
-import ChangePassword from "./pages/auth/ChangePassword"; // Import Change Password
+import ChangePassword from "./pages/auth/ChangePassword";
 
 // Patient Pages
 import PatientViewDoctors from "./pages/patient/ViewDoctors";
 import BookAppointment from "./pages/patient/BookAppointment";
 import PatientDashboard from "./pages/patient/PatientDashboard";
+import ManageAppointment from "./pages/patient/ManageAppointment";
 
 // Doctor Pages
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import ViewPatientAppointments from "./pages/doctor/ViewPatientAppointments";
+import RescheduleAppointment from "./pages/doctor/RescheduleAppointment";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AddDoctor from "./pages/admin/AddDoctor";
+import EditDoctor from "./pages/admin/EditDoctor";
 import AdminViewDoctors from "./pages/admin/ViewDoctors";
 import ViewAppointments from "./pages/admin/ViewAppointments";
 
@@ -82,7 +85,7 @@ function App() {
                     <Route path="doctors" element={<PatientViewDoctors />} />
                     <Route path="book-appointment/:doctorId" element={<BookAppointment />} />
                     <Route path="appointments" element={<PatientDashboard />} />
-                    {/* Change Password Route */}
+                    <Route path="manage-appointment/:appointmentId" element={<ManageAppointment />} />
                     <Route path="change-password" element={<ChangePassword role="patient" />} />
                   </Routes>
                 </div>
@@ -102,7 +105,7 @@ function App() {
                   <Routes>
                     <Route path="dashboard" element={<DoctorDashboard />} />
                     <Route path="appointments" element={<ViewPatientAppointments />} />
-                    {/* Change Password Route */}
+                    <Route path="reschedule-appointment/:appointmentId" element={<RescheduleAppointment />} />
                     <Route path="change-password" element={<ChangePassword role="doctor" />} />
                   </Routes>
                 </div>
@@ -123,8 +126,8 @@ function App() {
                     <Route path="dashboard" element={<AdminDashboard />} />
                     <Route path="add-doctor" element={<AddDoctor />} />
                     <Route path="doctors" element={<AdminViewDoctors />} />
+                    <Route path="edit-doctor/:id" element={<EditDoctor />} />
                     <Route path="appointments" element={<ViewAppointments />} />
-                    {/* Change Password Route */}
                     <Route path="change-password" element={<ChangePassword role="admin" />} />
                   </Routes>
                 </div>

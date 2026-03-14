@@ -24,9 +24,10 @@ export default function Login() {
       const response = await API.post('/auth/login', formData);
       const { token, user } = response.data;
 
-      localStorage.setItem('token', token);
-      localStorage.setItem('userRole', user.role);
-      localStorage.setItem('userId', user.id);
+      // Use sessionStorage instead of localStorage
+      sessionStorage.setItem('token', token);
+      sessionStorage.setItem('userRole', user.role);
+      sessionStorage.setItem('userId', user.id);
 
       // Navigate based on role
       switch (user.role) {
@@ -90,9 +91,7 @@ export default function Login() {
                 </option>
               )}
             </select>
-            
           
-            
             {/* Admin mode indicator */}
             {showAdminOption && (
               <div className="mt-2 p-2 bg-purple-50 rounded-lg flex items-center space-x-2">
@@ -155,7 +154,6 @@ export default function Login() {
     </div>
   );
 }
-
 
 
 

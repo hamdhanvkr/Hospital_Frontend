@@ -6,9 +6,9 @@ export default function SideMenu({ role }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userId');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('userId');
     navigate('/login');
   };
 
