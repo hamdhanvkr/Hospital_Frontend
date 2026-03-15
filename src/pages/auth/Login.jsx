@@ -28,6 +28,7 @@ export default function Login() {
       sessionStorage.setItem('token', token);
       sessionStorage.setItem('userRole', user.role);
       sessionStorage.setItem('userId', user.id);
+      sessionStorage.setItem('userName', user.username);
 
       // Navigate based on role
       switch (user.role) {
